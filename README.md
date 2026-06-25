@@ -29,8 +29,11 @@ real SSE streams, real blob/object storage — talking to a local CE node at
    npm run dev          # http://localhost:5176
    ```
 
-   The Vite dev server proxies `/ce-api` → `127.0.0.1:8844`, so the browser streams SSE
-   and POSTs without CORS friction.
+   The data path is the mesh-native, **same-origin** rail: `@ce-net/sdk`'s `connectNode()`
+   uses the in-tab `window.__ceNode` bridge if present, else the same-origin `/ce` reverse
+   proxy. The Vite dev server stands in for the `ce-app serve` layer and proxies `/ce` →
+   `127.0.0.1:8844`, so the browser stays same-origin under the strict CSP
+   (`connect-src 'self'`) and streams SSE + POSTs with no CORS and no off-origin hop.
 
 3. Open the app, type a board id (e.g. `harbor`), and start adding columns and cards.
    **Open the same board id on a second node in the same mesh** — point a second browser
@@ -54,6 +57,19 @@ real SSE streams, real blob/object storage — talking to a local CE node at
 npm run build   # tsc -b + vite build  → dist/
 npm test        # vitest (66 unit tests; no node required)
 ```
+
+### Serve & expose over the mesh
+
+`npm run build` emits a static `dist/`. Host it the mesh-native way (strict CSP + the
+same-origin bridge + a same-origin `/ce` proxy) with **ce-app**:
+
+```bash
+ce-app register                   # claim this app's name on-chain + advertise (no hub)
+ce-app serve                      # build + host locally under the strict CSP, /ce -> 127.0.0.1:8844
+ce-app expose --domain ce-board   # serve over https://ce-board.user.ce-net.com via mesh ingress
+```
+
+A served ce-board talks ONLY to its local node — there is no off-origin default.
 
 The unit tests run with the SDK mesh/data layer mocked by an in-memory fake (`test/fakes.ts`)
 and hammer the convergence guarantee directly: random op permutations fold to identical

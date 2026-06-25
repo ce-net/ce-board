@@ -4,14 +4,16 @@
  * rest of the app (and all unit tests) stays SDK-agnostic and runs with no node.
  */
 
-import { CeClient, bytesToUtf8, Amount } from "@ce-net/sdk";
+import { CeClient, bytesToUtf8, Amount, connectNode } from "@ce-net/sdk";
 import type { MeshLike, MeshFrame, DataLike } from "./service.ts";
 
-/** Where the local node's HTTP+SSE API lives. */
-export const DEFAULT_NODE_URL =
-  typeof window !== "undefined" && window.location.origin.startsWith("http")
-    ? `${window.location.origin}/ce-api` // dev: proxied by Vite to 127.0.0.1:8844
-    : "http://127.0.0.1:8844";
+/**
+ * Human label for "where the node lives", shown in the footer. The transport is the
+ * mesh-native, SAME-ORIGIN rail ({@link connectNode}: the in-tab `window.__ceNode`
+ * bridge if present, else the same-origin `/ce` reverse proxy), so the strict CSP
+ * (`connect-src 'self'`) holds and ce-board never reaches an off-origin host.
+ */
+export const DEFAULT_NODE_URL = "same-origin /ce";
 
 export interface Identity {
   nodeId: string;
@@ -23,8 +25,13 @@ export interface NodeMoney {
   total: Amount;
 }
 
-/** Construct a client against the local node (optionally an explicit base URL). */
-export function makeClient(baseUrl: string = DEFAULT_NODE_URL): CeClient {
+/**
+ * Construct a client against the local node. With no `baseUrl` (the default), this uses
+ * the mesh-native, same-origin transport via {@link connectNode}. A non-empty `baseUrl`
+ * is an explicit override pointing at a specific node's HTTP+SSE API.
+ */
+export function makeClient(baseUrl?: string): CeClient {
+  if (!baseUrl) return connectNode();
   return new CeClient({ baseUrl });
 }
 
